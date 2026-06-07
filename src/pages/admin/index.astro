@@ -189,7 +189,6 @@ tr:hover td{background:#f8fafc}
 <script is:inline>
 // ============ State ============
 let config = { token: '', repo: 'hfa134500/astro-blog', branch: 'master' };
-const DEPLOY_HOOK_URL = 'https://api.vercel.com/v1/integrations/deploy/prj_JLaBR1OufUKgQQPI4iY1EbclYX6t/LcHoVeNQ1I';
 let posts = [];
 let currentPage = 'dashboard';
 let editingSlug = null;
@@ -731,47 +730,48 @@ function showDeployResult(success, deployUrl) {
 }
 
 async function triggerDeploy(source) {
-  showDeployOverlay('正在部署...', '已提交到 GitHub，正在触发 Vercel 部署...', 3);
-  
-  // Call Vercel deploy hook to trigger a rebuild
+  showDeployOverlay('正在部署...', '正在保存并触发 Vercel 部署...', 3);
+
   try {
-    const res = await fetch(DEPLOY_HOOK_URL, { method: 'POST' });
-    if (res.ok || res.status === 201) {
-      const data = await res.json().catch(() => ({}));
-      const deployUrl = data.url || data.alias?.[0]?.domain 
-        ? `https://${data.alias[0].domain}` 
-        : 'https://61306130.xyz';
+    const res = await fetch('/api/trigger-deploy', { method: 'POST' });
+    
+    if (res.ok) {
+      const data = await res.json();
       
       showDeployOverlay('部署中...', 'Vercel 正在构建和部署...', 4);
       
-      // Poll for deployment status
+      // Poll until the site responds with new content
       let attempts = 0;
       const poll = setInterval(async () => {
         attempts++;
         try {
           const check = await fetch('https://61306130.xyz', { method: 'HEAD' });
-          if (check.ok) {
+          if (check.ok && attempts > 2) {
             clearInterval(poll);
-            showDeployResult(true, deployUrl);
-          } else if (attempts > 30) {
+            showDeployResult(true, data.deploymentUrl);
+          } else if (attempts > 20) {
             clearInterval(poll);
-            showDeployResult(true, deployUrl); // Assume success after timeout
+            showDeployResult(true, data.deploymentUrl);
           }
         } catch(e) {
-          if (attempts > 30) {
+          if (attempts > 20) {
             clearInterval(poll);
-            showDeployResult(true, deployUrl);
+            showDeployResult(true, 'https://61306130.xyz');
           }
         }
-      }, 3000);
+      }, 5000);
+      
+      // If API call itself found the deployment was ready, show result
+      if (data.success) {
+        // Keep polling for site to update
+      }
     } else {
-      // Deploy hook failed but commit was made - Vercel will auto-deploy from GitHub
-      showDeployOverlay('已提交', 'GitHub 已更新，Vercel 自动部署中...', 4);
+      const err = await res.json().catch(() => ({}));
+      showDeployOverlay('部署异常', `API 错误: ${err.error || res.status}。但 GitHub 已更新，稍后刷新页面即可看到变更。`, 4);
       setTimeout(() => showDeployResult(true, 'https://61306130.xyz'), 2000);
     }
   } catch (e) {
-    // Hook call failed but commit was made
-    showDeployOverlay('已提交', 'GitHub 已更新，Vercel 自动部署中...', 4);
+    showDeployOverlay('部署异常', `网络错误: ${e.message}。但 GitHub 已更新，Vercel 自动部署中。`, 4);
     setTimeout(() => showDeployResult(true, 'https://61306130.xyz'), 2000);
   }
 }
