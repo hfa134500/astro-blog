@@ -4,40 +4,39 @@ export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Methods', 'GET, PUT, DELETE, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Authorization, Content-Type, Accept');
 
-  if (req.method === 'OPTIONS') {
-    res.status(200).end();
-    return;
-  }
+  if (req.method === 'OPTIONS') { res.status(200).end(); return; }
 
   const path = req.query.path || '';
   const repo = req.query.repo || 'hfa134500/astro-blog';
-  // Build URL without trailing slash when path is empty
   const url = path
     ? `https://api.github.com/repos/${repo}/${path}`
     : `https://api.github.com/repos/${repo}`;
 
   const authHeader = req.headers.authorization;
-  if (!authHeader) {
-    res.status(401).json({ error: 'Missing Authorization header' });
-    return;
-  }
+  if (!authHeader) { res.status(401).json({ error: 'Missing Authorization header' }); return; }
 
-  const options = {
-    method: req.method,
-    headers: {
-      'Authorization': authHeader,
-      'Accept': req.headers.accept || 'application/vnd.github.v3+json',
-      'User-Agent': 'blog-admin-proxy',
-    },
+  const headers = {
+    'Authorization': authHeader,
+    'Accept': req.headers.accept || 'application/vnd.github.v3+json',
+    'User-Agent': 'blog-admin-proxy',
   };
 
-  if (req.body && ['PUT','POST','PATCH','DELETE'].includes(req.method)) {
-    options.body = JSON.stringify(req.body);
-    options.headers['Content-Type'] = 'application/json';
+  // For methods with body, parse it carefully
+  let body;
+  if (['PUT', 'POST', 'PATCH', 'DELETE'].includes(req.method)) {
+    headers['Content-Type'] = 'application/json';
+    // req.body might be an object (auto-parsed) or a string; normalize to JSON string
+    if (typeof req.body === 'object' && req.body !== null) {
+      body = JSON.stringify(req.body);
+    } else if (typeof req.body === 'string' && req.body.length > 0) {
+      // If it's already a string, try to ensure it's valid JSON
+      try { JSON.parse(req.body); body = req.body; }
+      catch(e) { body = JSON.stringify(req.body); }
+    }
   }
 
   try {
-    const response = await fetch(url, options);
+    const response = await fetch(url, { method: req.method, headers, body });
     const contentType = response.headers.get('content-type') || '';
     res.status(response.status);
 
