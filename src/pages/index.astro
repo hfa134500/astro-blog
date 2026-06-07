@@ -1,0 +1,132 @@
+---
+import Layout from '../layouts/Layout.astro';
+import { getCollection } from 'astro:content';
+
+const posts = await getCollection('blog');
+posts.sort((a, b) => b.data.pubDate.getTime() - a.data.pubDate.getTime());
+---
+
+<Layout title="我的博客">
+  <section class="hero">
+    <h1>欢迎来到我的博客</h1>
+    <p class="subtitle">分享技术与生活</p>
+  </section>
+
+  <section class="post-list">
+    <h2>最新文章</h2>
+    {posts.length === 0 && <p class="empty">还没有文章，敬请期待！</p>}
+    {posts.map(post => (
+      <article class="post-card">
+        <a href={`/blog/${post.id.replace(/\.md$/, '')}/`}>
+          {post.data.heroImage && (
+            <img src={post.data.heroImage} alt="" class="card-image" />
+          )}
+          <div class="card-content">
+            <h3>{post.data.title}</h3>
+            <p class="card-description">{post.data.description}</p>
+            <div class="card-meta">
+              <time datetime={post.data.pubDate.toISOString()}>
+                {post.data.pubDate.toLocaleDateString('zh-CN', {
+                  year: 'numeric', month: 'long', day: 'numeric'
+                })}
+              </time>
+              {post.data.tags.length > 0 && (
+                <div class="card-tags">
+                  {post.data.tags.map(tag => <span class="tag">{tag}</span>)}
+                </div>
+              )}
+            </div>
+          </div>
+        </a>
+      </article>
+    ))}
+  </section>
+</Layout>
+
+<style>
+  .hero {
+    text-align: center;
+    padding: 3rem 0 2.5rem;
+  }
+  .hero h1 {
+    font-size: 2.5rem;
+    color: #0f172a;
+    margin-bottom: 0.5rem;
+  }
+  .subtitle {
+    color: #64748b;
+    font-size: 1.1rem;
+  }
+  .post-list {
+    margin-top: 1rem;
+  }
+  .post-list h2 {
+    font-size: 1.3rem;
+    color: #475569;
+    margin-bottom: 1.5rem;
+    padding-bottom: 0.5rem;
+    border-bottom: 2px solid #e2e8f0;
+  }
+  .empty {
+    text-align: center;
+    color: #94a3b8;
+    padding: 3rem 0;
+  }
+  .post-card {
+    background: white;
+    border-radius: 12px;
+    overflow: hidden;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.06);
+    margin-bottom: 1.25rem;
+    transition: transform 0.2s, box-shadow 0.2s;
+  }
+  .post-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+  }
+  .post-card a {
+    text-decoration: none;
+    color: inherit;
+    display: block;
+  }
+  .card-image {
+    width: 100%;
+    height: 200px;
+    object-fit: cover;
+  }
+  .card-content {
+    padding: 1.5rem;
+  }
+  .card-content h3 {
+    font-size: 1.2rem;
+    margin-bottom: 0.5rem;
+    color: #0f172a;
+  }
+  .card-description {
+    color: #64748b;
+    font-size: 0.9rem;
+    margin-bottom: 0.75rem;
+    line-height: 1.5;
+  }
+  .card-meta {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    flex-wrap: wrap;
+    font-size: 0.82rem;
+    color: #94a3b8;
+  }
+  .card-tags {
+    display: flex;
+    gap: 0.4rem;
+  }
+  .tag {
+    display: inline-block;
+    background: #eef2ff;
+    color: #4f46e5;
+    padding: 0.15rem 0.6rem;
+    border-radius: 999px;
+    font-size: 0.75rem;
+    font-weight: 500;
+  }
+</style>
