@@ -1,6 +1,5 @@
 ---
 // Admin Panel — Client-side SPA for managing the Astro blog
-// Uses GitHub API to read/write repository files directly
 export const prerender = true;
 ---
 <!DOCTYPE html>
@@ -11,11 +10,12 @@ export const prerender = true;
 <title>博客管理后台</title>
 <script src="https://cdn.tailwindcss.com"></script>
 <style>
+*{box-sizing:border-box}
 :root{--p:oklch(0.6 0.18 250);--p-hover:oklch(0.55 0.18 250)}
 body{font-family:system-ui,sans-serif;background:#f8fafc;color:#1e293b;margin:0}
 .sidebar{width:260px;min-height:100vh;background:#1e293b;color:#cbd5e1}
-.sidebar a{display:flex;align-items:center;gap:10px;padding:12px 20px;color:#94a3b8;text-decoration:none;transition:all .15s}
-.sidebar a:hover,.sidebar a.active{background:rgba(255,255,255,0.06);color:#e2e8f0;border-left:3px solid var(--p)}
+.sidebar a{display:flex;align-items:center;gap:10px;padding:12px 20px;color:#94a3b8;text-decoration:none;transition:all .15s;border-left:3px solid transparent}
+.sidebar a:hover,.sidebar a.active{background:rgba(255,255,255,0.06);color:#e2e8f0;border-left-color:var(--p)}
 .main{flex:1;padding:24px;max-width:1200px}
 .card{background:white;border-radius:12px;padding:24px;box-shadow:0 1px 3px rgba(0,0,0,0.07);margin-bottom:20px}
 .btn{display:inline-flex;align-items:center;gap:6px;padding:8px 16px;border-radius:8px;font-size:14px;font-weight:500;cursor:pointer;border:none;transition:all .15s}
@@ -31,18 +31,15 @@ th{text-align:left;padding:12px 16px;font-size:12px;text-transform:uppercase;col
 td{padding:12px 16px;border-bottom:1px solid #f1f5f9;font-size:14px}
 tr:hover td{background:#f8fafc}
 .badge{display:inline-block;padding:2px 10px;border-radius:999px;font-size:12px;font-weight:500}
-.badge-blue{background:#eef2ff;color:#4f46e5}
-.badge-green{background:#dcfce7;color:#166534}
-.badge-yellow{background:#fef9c3;color:#854d0e}
-.badge-gray{background:#f1f5f9;color:#475569}
-.toast{position:fixed;bottom:24px;right:24px;padding:14px 20px;border-radius:10px;color:white;z-index:9999;transform:translateY(100px);opacity:0;transition:all .3s;max-width:400px}
+.badge-blue{background:#eef2ff;color:#4f46e5}.badge-green{background:#dcfce7;color:#166534}.badge-gray{background:#f1f5f9;color:#475569}
+.toast{position:fixed;bottom:24px;right:24px;padding:14px 20px;border-radius:10px;color:white;z-index:9999;transform:translateY(100px);opacity:0;transition:all .3s;max-width:420px}
 .toast.show{transform:translateY(0);opacity:1}
 .toast-success{background:#22c55e}.toast-error{background:#ef4444}.toast-info{background:#3b82f6}
 .modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,0.4);display:flex;align-items:center;justify-content:center;z-index:9998;backdrop-filter:blur(2px)}
 .modal{background:white;border-radius:16px;width:90%;max-width:800px;max-height:90vh;overflow-y:auto;padding:32px}
 .modal h2{font-size:1.3rem;font-weight:700;margin-bottom:20px;color:#0f172a}
 .form-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px}
-.form-grid .full{grid-column:1/-1}.form-grid .half{grid-column:span 1}
+.form-grid .full{grid-column:1/-1}
 .empty-state{text-align:center;padding:60px 20px;color:#94a3b8}
 .empty-state h3{font-size:1.2rem;margin-bottom:8px;color:#64748b}
 .spinner{display:inline-block;width:20px;height:20px;border:2px solid #e2e8f0;border-top-color:var(--p);border-radius:50%;animation:spin .6s linear infinite}
@@ -53,69 +50,61 @@ tr:hover td{background:#f8fafc}
 <body>
 
 <div id="app" class="flex" style="display:none">
-  <!-- Sidebar -->
   <nav class="sidebar flex flex-col">
     <div class="p-5 text-lg font-bold text-white border-b border-white/10 flex items-center gap-2">📝 博客管理</div>
     <div class="flex-1 py-4">
       <a href="#" data-page="dashboard" class="active" onclick="nav('dashboard')">📊 仪表盘</a>
       <a href="#" data-page="posts" onclick="nav('posts')">📄 文章管理</a>
-      <a href="#" data-page="settings" onclick="nav('settings')">⚙️ 站点设置</a>
-      <a href="#" data-page="media" onclick="nav('media')">🖼️ 媒体管理</a>
+      <a href="#" data-page="settings" onclick="nav('settings')">⚙️ 设置</a>
+      <a href="#" data-page="media" onclick="nav('media')">🖼️ 媒体</a>
     </div>
     <div class="p-4 border-t border-white/10 flex flex-col gap-2">
       <a href="https://61306130.xyz" target="_blank" class="text-sm opacity-70 hover:opacity-100">🔗 查看博客</a>
-      <button onclick="syncVercel()" class="text-sm opacity-70 hover:opacity-100 text-left" style="background:none;border:none;cursor:pointer;padding:0;color:inherit">🔄 重新部署</button>
     </div>
   </nav>
 
-  <!-- Main Content -->
   <div class="main">
-    <div id="token-banner" class="card" style="border-left:4px solid #f59e0b;display:none">
-      <div class="flex items-center gap-3">
-        <span style="font-size:1.5rem">🔑</span>
-        <div>
-          <h3 style="margin:0 0 4px;font-size:1rem">需要 GitHub Token</h3>
-          <p style="margin:0;color:#64748b;font-size:0.9rem">请配置 GitHub Personal Access Token 以管理博客内容。</p>
-        </div>
-        <button onclick="showTokenModal()" class="btn btn-primary" style="margin-left:auto">配置 Token</button>
-      </div>
-    </div>
     <div id="page-content"><div class="empty-state"><div class="spinner"></div><p style="margin-top:12px">加载中...</p></div></div>
   </div>
 </div>
 
 <div id="toast" class="toast"></div>
 
-<!-- Token Config Modal -->
-<div id="token-modal" class="modal-overlay" style="display:none" onclick="if(event.target===this)closeTokenModal()">
-  <div class="modal" style="max-width:480px">
-    <h2>🔑 配置 GitHub</h2>
-    <p style="color:#64748b;font-size:0.9rem;margin-bottom:16px">
-      需要 GitHub Personal Access Token (权限: repo) 来读写博客文章。
+<!-- Token Setup Modal (shows on every first load) -->
+<div id="token-modal" class="modal-overlay" style="display:flex">
+  <div class="modal" style="max-width:540px;text-align:center">
+    <div style="font-size:3rem;margin-bottom:12px">🔑</div>
+    <h2>配置 GitHub 连接</h2>
+    <p style="color:#64748b;font-size:0.9rem;margin-bottom:4px">
+      管理后台通过 GitHub API 读写文章。需要 <strong>GitHub Personal Access Token</strong>（需 <code>repo</code> 权限）。
     </p>
-    <div class="form-grid">
-      <div class="half">
-        <label>Token</label>
-        <input type="password" id="gh-token-input" placeholder="github_pat_..." style="font-family:monospace">
+    <p style="color:#94a3b8;font-size:0.85rem;margin-bottom:20px">
+      还没有 Token？<a href="https://github.com/settings/tokens/new?scopes=repo&description=astro-blog-admin" target="_blank" style="color:#3b82f6">点击创建 →</a>
+      （选择 <strong>repo</strong> 全部勾选，生成后复制粘贴到下面）
+    </p>
+
+    <div class="form-grid" style="text-align:left">
+      <div class="full">
+        <label>GitHub Token</label>
+        <input type="password" id="gh-token-input" placeholder="github_pat_..." style="font-family:monospace;font-size:13px">
       </div>
       <div class="half">
-        <label>仓库名</label>
-        <input type="text" id="gh-repo-input" placeholder="hfa134500/astro-blog" value="hfa134500/astro-blog">
+        <label>仓库（默认自动填好）</label>
+        <input type="text" id="gh-repo-input" value="hfa134500/astro-blog">
       </div>
       <div class="half">
         <label>分支</label>
-        <input type="text" id="gh-branch-input" placeholder="main" value="master">
-      </div>
-      <div class="half">
-        <label>作者</label>
-        <input type="text" id="gh-author-input" placeholder="Your Name" value="hfa134500">
+        <input type="text" id="gh-branch-input" value="master">
       </div>
     </div>
-    <div style="margin-top:20px;display:flex;gap:12px;justify-content:flex-end">
-      <button onclick="closeTokenModal()" class="btn btn-ghost">取消</button>
-      <button onclick="saveToken()" class="btn btn-primary">保存并连接</button>
+
+    <div id="token-result" style="margin:16px 0;font-size:0.9rem;min-height:24px"></div>
+
+    <div style="display:flex;gap:12px;justify-content:center">
+      <button id="token-connect-btn" onclick="connectGitHub()" class="btn btn-primary" style="padding:12px 32px;font-size:15px">🔗 连接 GitHub</button>
     </div>
-    <p id="token-test-result" style="margin-top:12px;font-size:0.85rem;color:#64748b"></p>
+
+    <div id="token-debug" style="margin-top:16px;padding:12px;background:#f1f5f9;border-radius:8px;text-align:left;font-family:monospace;font-size:12px;color:#64748b;display:none;max-height:200px;overflow:auto;white-space:pre-wrap;word-break:break-all"></div>
   </div>
 </div>
 
@@ -168,7 +157,7 @@ tr:hover td{background:#f8fafc}
   <div class="modal" style="max-width:440px;text-align:center">
     <span style="font-size:3rem;display:block;margin-bottom:12px">⚠️</span>
     <h2 style="margin:0 0 8px">确认删除</h2>
-    <p style="color:#64748b;margin:0 0 4px">确定要删除文章 <strong id="delete-title-text"></strong> 吗？</p>
+    <p style="color:#64748b;margin:0 0 4px">确定要删除 <strong id="delete-title-text"></strong>？</p>
     <p style="color:#94a3b8;font-size:0.85rem">此操作不可撤销。</p>
     <div style="margin-top:20px;display:flex;gap:12px;justify-content:center">
       <button onclick="closeDelete()" class="btn btn-ghost">取消</button>
@@ -177,213 +166,319 @@ tr:hover td{background:#f8fafc}
   </div>
 </div>
 
-<script>
+<script is:inline>
 // ============ State ============
-let config = { token: '', repo: 'hfa134500/astro-blog', branch: 'master', author: 'hfa134500' };
+let config = { token: '', repo: 'hfa134500/astro-blog', branch: 'master' };
 let posts = [];
-let tags = [];
 let currentPage = 'dashboard';
-let editingPost = null;
+let editingSlug = null;
 let deletingSlug = null;
 
 // ============ Init ============
-function init() {
+(function init() {
   const saved = localStorage.getItem('blog-admin-config');
   if (saved) {
     Object.assign(config, JSON.parse(saved));
+    document.getElementById('gh-token-input').value = config.token;
+    document.getElementById('gh-repo-input').value = config.repo;
+    document.getElementById('gh-branch-input').value = config.branch;
   }
-  if (config.token && config.repo) {
-    document.getElementById('token-banner').style.display = 'none';
+  // Always show token modal on first visit
+  // But try auto-connect if we have saved config
+  if (config.token) {
+    document.getElementById('token-connect-btn').textContent = '🔄 重新连接';
+    autoConnect();
+  }
+})();
+
+async function autoConnect() {
+  const btn = document.getElementById('token-connect-btn');
+  btn.disabled = true;
+  btn.textContent = '⏳ 验证中...';
+  const ok = await testConnection();
+  if (ok) {
+    document.getElementById('token-modal').style.display = 'none';
     document.getElementById('app').style.display = 'flex';
-    loadDashboard();
+    enterApp();
   } else {
-    document.getElementById('token-banner').style.display = 'block';
-    document.getElementById('app').style.display = 'flex';
-    showTokenModal();
+    btn.disabled = false;
+    btn.textContent = '🔗 连接 GitHub';
   }
 }
-init();
 
 // ============ GitHub API ============
-async function ghFetch(path, opts = {}) {
-  const url = `https://api.github.com/repos/${config.repo}/${path}`;
+async function gh(urlSuffix, opts = {}) {
+  const url = `https://api.github.com/repos/${config.repo}/${urlSuffix}`;
   const headers = {
     Authorization: `Bearer ${config.token}`,
     Accept: 'application/vnd.github.v3+json',
     'User-Agent': 'blog-admin',
-    ...opts.headers,
+    ...(opts.headers || {}),
   };
-  if (!opts.noContentType) headers['Content-Type'] = 'application/json';
+  if (!opts.noContentType && opts.body) headers['Content-Type'] = 'application/json';
+
   const res = await fetch(url, { ...opts, headers });
-  if (!res.ok && res.status !== 404) {
-    const err = await res.json().catch(() => ({}));
-    throw new Error(err.message || `HTTP ${res.status}`);
+
+  if (!res.ok) {
+    let msg = `HTTP ${res.status}`;
+    try {
+      const err = await res.json();
+      msg = err.message || msg;
+    } catch (_) {}
+    throw new Error(`${msg} (${res.status})`);
   }
+
   if (res.status === 204) return null;
-  if (res.status === 404) return null;
   const ct = res.headers.get('content-type') || '';
-  if (ct.includes('application/json')) return res.json();
-  return res.text();
+  return ct.includes('application/json') ? res.json() : res.text();
 }
 
-async function ghGetContent(path) {
-  const data = await ghFetch(`contents/${path}`);
-  if (!data) return null;
-  const content = atob(data.content.replace(/\n/g, ''));
-  return { content, sha: data.sha };
+async function ghGetFile(path) {
+  try {
+    const data = await gh(`contents/${path}`);
+    return {
+      content: decodeBase64(data.content),
+      sha: data.sha,
+    };
+  } catch (e) {
+    if (e.message.includes('404')) return null;
+    throw e;
+  }
 }
 
-async function ghPutContent(path, content, message) {
-  const existing = await ghFetch(`contents/${path}`).catch(() => null);
-  const sha = existing?.sha || null;
-  const body = {
-    message,
-    content: btoa(unescape(encodeURIComponent(content))),
-    branch: config.branch,
-  };
-  if (sha) body.sha = sha;
-  body.author = { name: config.author, email: `${config.author}@users.noreply.github.com` };
-  return ghFetch(`contents/${path}`, { method: 'PUT', body: JSON.stringify(body) });
+async function ghWriteFile(path, content, msg) {
+  let sha = null;
+  try {
+    const existing = await gh(`contents/${path}`);
+    sha = existing.sha;
+  } catch (_) {}
+  return gh(`contents/${path}`, {
+    method: 'PUT',
+    body: JSON.stringify({
+      message: msg,
+      content: encodeBase64(content),
+      branch: config.branch,
+      sha,
+      author: { name: 'blog-admin', email: 'admin@61306130.xyz' },
+    }),
+  });
 }
 
-async function ghDeleteContent(path, message) {
-  const existing = await ghFetch(`contents/${path}`);
-  if (!existing) return;
-  const body = {
-    message,
-    sha: existing.sha,
-    branch: config.branch,
-  };
-  return ghFetch(`contents/${path}`, { method: 'DELETE', body: JSON.stringify(body) });
+async function ghDeleteFile(path, msg) {
+  let existing;
+  try {
+    existing = await gh(`contents/${path}`);
+  } catch (_) { return; }
+  return gh(`contents/${path}`, {
+    method: 'DELETE',
+    body: JSON.stringify({ message: msg, sha: existing.sha, branch: config.branch }),
+  });
 }
 
 async function ghListDir(path) {
-  const data = await ghFetch(`contents/${path}`);
+  const data = await gh(`contents/${path}`);
   if (!Array.isArray(data)) return [];
-  return data.filter(f => f.type === 'file');
+  return data.filter(f => f.type === 'file' && f.name.endsWith('.md'));
 }
 
-// ============ Token Management ============
-function showTokenModal() {
-  document.getElementById('token-modal').style.display = 'flex';
-  document.getElementById('gh-token-input').value = config.token;
-  document.getElementById('gh-repo-input').value = config.repo;
-  document.getElementById('gh-branch-input').value = config.branch;
+function decodeBase64(str) {
+  try { return decodeURIComponent(escape(atob(str.replace(/\n/g,'')))); }
+  catch(_) { return atob(str.replace(/\n/g,'')); }
+}
+function encodeBase64(str) {
+  return btoa(unescape(encodeURIComponent(str)));
 }
 
-function closeTokenModal() {
-  document.getElementById('token-modal').style.display = 'none';
-}
+// ============ Connection Test ============
+async function testConnection() {
+  const resultEl = document.getElementById('token-result');
+  const debugEl = document.getElementById('token-debug');
+  debugEl.style.display = 'none';
+  debugEl.textContent = '';
 
-async function saveToken() {
-  const btn = document.querySelector('#token-modal .btn-primary');
-  btn.disabled = true; btn.textContent = '验证中...';
   config.token = document.getElementById('gh-token-input').value.trim();
   config.repo = document.getElementById('gh-repo-input').value.trim();
   config.branch = document.getElementById('gh-branch-input').value.trim();
-  config.author = document.getElementById('gh-author-input').value.trim() || 'hfa134500';
-  
-  try {
-    const test = await ghFetch('');
-    if (!test) throw new Error('无法访问仓库');
-    localStorage.setItem('blog-admin-config', JSON.stringify(config));
-    document.getElementById('token-test-result').textContent = '✅ 连接成功！';
-    document.getElementById('token-test-result').style.color = '#16a34a';
-    document.getElementById('token-banner').style.display = 'none';
-    setTimeout(() => { closeTokenModal(); loadDashboard(); }, 800);
-  } catch (e) {
-    document.getElementById('token-test-result').textContent = `❌ 连接失败: ${e.message}`;
-    document.getElementById('token-test-result').style.color = '#dc2626';
+
+  if (!config.token) {
+    resultEl.innerHTML = '<span style="color:#dc2626">❌ 请填写 GitHub Token</span>';
+    return false;
   }
-  btn.disabled = false; btn.textContent = '保存并连接';
+
+  resultEl.innerHTML = '<span style="color:#64748b">⏳ 正在连接 GitHub...</span>';
+
+  // Step 1: Test repo access
+  try {
+    const repoInfo = await gh('');
+    debugEl.textContent += `✅ 仓库连接成功: ${repoInfo.full_name}\n`;
+    debugEl.textContent += `   ⤷ 默认分支: ${repoInfo.default_branch}\n`;
+    if (repoInfo.private) debugEl.textContent += `   ⤷ 私有仓库\n`;
+    debugEl.style.display = 'block';
+  } catch (e) {
+    debugEl.textContent = `❌ 仓库访问失败\n`;
+    debugEl.textContent += `   ⤷ URL: https://api.github.com/repos/${config.repo}/\n`;
+    debugEl.textContent += `   ⤷ 错误: ${e.message}\n\n`;
+    debugEl.textContent += `可能的原因:\n`;
+    debugEl.textContent += `   1. Token 不正确\n`;
+    debugEl.textContent += `   2. Token 没有 repo 权限\n`;
+    debugEl.textContent += `   3. 仓库名写错了\n`;
+    debugEl.textContent += `   4. 网络限制无法访问 GitHub API\n`;
+    debugEl.style.display = 'block';
+    resultEl.innerHTML = `<span style="color:#dc2626">❌ 连接失败: ${e.message}</span>`;
+    return false;
+  }
+
+  // Step 2: Test contents access
+  try {
+    const contents = await ghListDir('src/content/blog');
+    debugEl.textContent += `✅ 内容目录访问成功\n`;
+    debugEl.textContent += `   ⤷ 找到 ${contents.length} 篇 Markdown 文章\n`;
+  } catch (e) {
+    debugEl.textContent += `⚠️ 内容目录访问异常: ${e.message}\n`;
+    debugEl.textContent += `   ⤷ 可能还没有文章，这没关系\n`;
+  }
+
+  // Save config
+  localStorage.setItem('blog-admin-config', JSON.stringify(config));
+  resultEl.innerHTML = '<span style="color:#16a34a;font-weight:600">✅ 连接成功！即将进入管理后台...</span>';
+  return true;
+}
+
+async function connectGitHub() {
+  const btn = document.getElementById('token-connect-btn');
+  btn.disabled = true;
+  btn.textContent = '⏳ 验证中...';
+  const ok = await testConnection();
+  if (ok) {
+    setTimeout(() => {
+      document.getElementById('token-modal').style.display = 'none';
+      document.getElementById('app').style.display = 'flex';
+      enterApp();
+    }, 1000);
+  }
+  btn.disabled = false;
+  btn.textContent = '🔗 连接 GitHub';
+}
+
+// ============ App Entry ============
+async function enterApp() {
+  try {
+    await refreshPosts();
+    renderDashboard();
+  } catch (e) {
+    showToast(`数据加载失败: ${e.message}`, 'error');
+    document.getElementById('page-content').innerHTML = `
+      <div class="card empty-state">
+        <h3>⚠️ 加载失败</h3>
+        <p>${e.message}</p>
+        <button onclick="enterApp()" class="btn btn-primary" style="margin-top:12px">🔄 重试</button>
+      </div>`;
+  }
+}
+
+async function refreshPosts() {
+  const dir = await ghListDir('src/content/blog');
+  posts = [];
+  for (const f of dir) {
+    try {
+      const c = await ghGetFile(f.path);
+      if (c) {
+        const fm = parseFrontmatter(c.content);
+        posts.push({
+          name: f.name,
+          slug: f.name.replace(/\.md$/, ''),
+          title: fm.title || f.name,
+          date: fm.pubDate || fm.date || '',
+          tags: fm.tags || [],
+          desc: fm.description || '',
+          hero: fm.heroImage || '',
+          body: c.content,
+          sha: c.sha,
+          fm,
+        });
+      }
+    } catch (_) {}
+  }
+  posts.sort((a,b) => {
+    if (!a.date) return 1; if (!b.date) return -1;
+    return new Date(b.date) - new Date(a.date);
+  });
+}
+
+// ============ Frontmatter Parser ============
+function parseFrontmatter(content) {
+  const fm = {};
+  const m = content.match(/^---\n([\s\S]*?)\n---\n?([\s\S]*)$/);
+  if (!m) return fm;
+  fm._body = (m[2]||'').trim();
+  m[1].split('\n').forEach(line => {
+    const i = line.indexOf(':');
+    if (i === -1) return;
+    const k = line.slice(0,i).trim();
+    let v = line.slice(i+1).trim();
+    if ((v.startsWith('"')&&v.endsWith('"'))||(v.startsWith("'")&&v.endsWith("'"))) v=v.slice(1,-1);
+    if (k === 'tags') {
+      if (v.startsWith('[')) v=v.slice(1,-1);
+      fm.tags = v.split(',').map(t=>t.trim().replace(/['"]/g,'')).filter(Boolean);
+    } else if (k === 'pubDate'||k==='date') fm.pubDate=v;
+    else if (k==='updatedDate') fm.updatedDate=v;
+    else if (k==='heroImage') fm.heroImage=v;
+    else fm[k]=v;
+  });
+  return fm;
+}
+
+function buildFrontmatter(d) {
+  let s = '---\n';
+  s += `title: '${(d.title||'').replace(/'/g,"\\'")}'\n`;
+  s += `description: '${(d.description||'').replace(/'/g,"\\'")}'\n`;
+  s += `pubDate: ${d.pubDate}\n`;
+  if (d.updatedDate) s+=`updatedDate: ${d.updatedDate}\n`;
+  if (d.heroImage) s+=`heroImage: ${d.heroImage}\n`;
+  if (d.tags && d.tags.length) s+=`tags: [${d.tags.map(t=>`'${t.trim()}'`).join(', ')}]\n`;
+  s += '---\n\n';
+  return s;
 }
 
 // ============ Navigation ============
 function nav(page) {
   currentPage = page;
-  document.querySelectorAll('.sidebar a').forEach(a => a.classList.remove('active'));
-  document.querySelector(`.sidebar a[data-page="${page}"]`).classList.add('active');
-  const content = document.getElementById('page-content');
-  content.innerHTML = '<div class="empty-state"><div class="spinner"></div><p style="margin-top:12px">加载中...</p></div>';
-  switch (page) {
-    case 'dashboard': loadDashboard(); break;
-    case 'posts': loadPosts(); break;
-    case 'settings': loadSettings(); break;
-    case 'media': loadMedia(); break;
-  }
+  document.querySelectorAll('.sidebar a').forEach(a=>a.classList.remove('active'));
+  const el = document.querySelector(`.sidebar a[data-page="${page}"]`);
+  if (el) el.classList.add('active');
+  const c = document.getElementById('page-content');
+  c.innerHTML = '<div class="empty-state"><div class="spinner"></div><p style="margin-top:12px">加载中...</p></div>';
+  if (page==='dashboard') renderDashboard();
+  else if (page==='posts') renderPosts();
+  else if (page==='settings') renderSettings();
+  else if (page==='media') renderMedia();
 }
 
 // ============ Dashboard ============
-async function loadDashboard() {
-  try {
-    const dir = await ghListDir('src/content/blog');
-    posts = dir.filter(f => f.name.endsWith('.md')).map(f => ({
-      name: f.name,
-      path: f.path,
-      slug: f.name.replace(/\.md$/, ''),
-      sha: f.sha,
-      size: f.size,
-    }));
-    
-    // Parse frontmatter from each post
-    const tagCount = {};
-    for (const p of posts) {
-      const c = await ghGetContent(p.path);
-      if (c) {
-        const fm = parseFrontmatter(c.content);
-        p.title = fm.title || p.slug;
-        p.date = fm.pubDate || fm.date || '';
-        p.tags = fm.tags || [];
-        p.desc = fm.description || '';
-        p.fm = fm;
-        p.body = c.content;
-        p.sha = c.sha;
-        p.tags.forEach(t => { tagCount[t] = (tagCount[t] || 0) + 1; });
-      }
-    }
-    tags = Object.entries(tagCount).sort((a,b) => b[1]-a[1]).map(([name,count]) => ({name,count}));
-    
-    renderDashboard();
-  } catch (e) {
-    showToast(`加载失败: ${e.message}`, 'error');
-  }
-}
-
 function renderDashboard() {
   const total = posts.length;
-  const published = posts.filter(p => p.date && new Date(p.date) <= new Date()).length;
-  const totalTags = tags.length;
-  const recent = posts.filter(p => p.date).sort((a,b) => new Date(b.date)-new Date(a.date)).slice(0,5);
-  const allTags = tags;
+  const pub = posts.filter(p=>p.date&&new Date(p.date)<=new Date()).length;
+  const tagMap = {};
+  posts.forEach(p=>(p.tags||[]).forEach(t=>{tagMap[t]=(tagMap[t]||0)+1}));
+  const tagArr = Object.entries(tagMap).sort((a,b)=>b[1]-a[1]);
+  const recent = posts.slice(0,5);
 
   document.getElementById('page-content').innerHTML = `
     <h1 style="font-size:1.5rem;font-weight:700;margin-bottom:20px;color:#0f172a">📊 仪表盘</h1>
     <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-      <div class="card" style="padding:20px">
-        <div style="font-size:0.85rem;color:#64748b;margin-bottom:4px">总文章数</div>
-        <div style="font-size:2rem;font-weight:700;color:#0f172a">${total}</div>
-      </div>
-      <div class="card" style="padding:20px">
-        <div style="font-size:0.85rem;color:#64748b;margin-bottom:4px">已发布</div>
-        <div style="font-size:2rem;font-weight:700;color:#16a34a">${published}</div>
-      </div>
-      <div class="card" style="padding:20px">
-        <div style="font-size:0.85rem;color:#64748b;margin-bottom:4px">标签数</div>
-        <div style="font-size:2rem;font-weight:700;color:#4f46e5">${totalTags}</div>
-      </div>
-      <div class="card" style="padding:20px">
-        <div style="font-size:0.85rem;color:#64748b;margin-bottom:4px">仓库</div>
-        <div style="font-size:1rem;font-weight:600;color:#0f172a;word-break:break-all">${config.repo}</div>
-      </div>
+      <div class="card" style="padding:20px"><div style="font-size:0.85rem;color:#64748b;margin-bottom:4px">文章数</div><div style="font-size:2rem;font-weight:700;color:#0f172a">${total}</div></div>
+      <div class="card" style="padding:20px"><div style="font-size:0.85rem;color:#64748b;margin-bottom:4px">已发布</div><div style="font-size:2rem;font-weight:700;color:#16a34a">${pub}</div></div>
+      <div class="card" style="padding:20px"><div style="font-size:0.85rem;color:#64748b;margin-bottom:4px">标签</div><div style="font-size:2rem;font-weight:700;color:#4f46e5">${tagArr.length}</div></div>
+      <div class="card" style="padding:20px"><div style="font-size:0.85rem;color:#64748b;margin-bottom:4px">仓库</div><div style="font-size:0.95rem;font-weight:600;color:#0f172a;word-break:break-all">${config.repo}</div></div>
     </div>
     <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
       <div class="card">
         <h3 style="font-size:1rem;font-weight:600;margin-bottom:12px">最近文章</h3>
-        ${recent.length === 0 ? '<p style="color:#94a3b8">暂无文章</p>' : recent.map(p => `
+        ${recent.length===0?'<p style="color:#94a3b8">暂无文章，开始写第一篇吧！</p>':recent.map(p=>`
           <div class="flex items-center justify-between py-2 border-b border-gray-100 last:border-0">
             <div>
-              <a href="#" onclick="nav('posts');editPost('${p.slug}');return false" style="font-weight:500;color:#0f172a;text-decoration:none">${p.title || p.slug}</a>
-              <div style="font-size:0.8rem;color:#94a3b8;margin-top:2px">${p.date || '无日期'} ${p.tags?.length ? '· ' + p.tags.map(t => '<span class="badge badge-blue" style="margin-right:4px">'+t+'</span>').join('') : ''}</div>
+              <a href="#" onclick="nav('posts');editPost('${p.slug}');return false" style="font-weight:500;color:#0f172a;text-decoration:none">${p.title}</a>
+              <div style="font-size:0.8rem;color:#94a3b8;margin-top:2px">${p.date||'无日期'} ${(p.tags||[]).length?('· '+(p.tags||[]).map(t=>'<span class="badge badge-blue" style="margin-right:4px">'+t+'</span>').join('')):''}</div>
             </div>
             <a href="#" onclick="nav('posts');editPost('${p.slug}');return false" class="btn btn-ghost btn-sm">编辑</a>
           </div>
@@ -391,158 +486,72 @@ function renderDashboard() {
       </div>
       <div class="card">
         <h3 style="font-size:1rem;font-weight:600;margin-bottom:12px">标签分布</h3>
-        ${allTags.length === 0 ? '<p style="color:#94a3b8">暂无标签</p>' : allTags.map(t => `
+        ${tagArr.length===0?'<p style="color:#94a3b8">暂无标签</p>':tagArr.map(([name,count])=>`
           <div class="flex items-center justify-between py-1.5">
-            <span class="badge badge-blue" style="font-size:0.85rem">${t.name}</span>
-            <span style="font-size:0.85rem;color:#64748b">${t.count} 篇</span>
+            <span class="badge badge-blue" style="font-size:0.85rem">${name}</span>
+            <span style="font-size:0.85rem;color:#64748b">${count} 篇</span>
           </div>
         `).join('')}
       </div>
     </div>
     <div class="card" style="margin-top:20px">
-      <h3 style="font-size:1rem;font-weight:600;margin-bottom:8px">💡 快速操作</h3>
+      <h3 style="font-size:1rem;font-weight:600;margin-bottom:8px">⚡ 快速操作</h3>
       <div class="flex gap-3 flex-wrap">
         <button onclick="nav('posts');newPost()" class="btn btn-primary">✏️ 写新文章</button>
-        <button onclick="syncVercel()" class="btn btn-ghost">🔄 触发部署</button>
         <a href="https://61306130.xyz" target="_blank" class="btn btn-ghost" style="text-decoration:none">🔗 查看博客</a>
       </div>
     </div>
   `;
 }
 
-// ============ Frontmatter Parser ============
-function parseFrontmatter(content) {
-  const fm = {};
-  const match = content.match(/^---\n([\s\S]*?)\n---\n?([\s\S]*)$/);
-  if (!match) return fm;
-  const raw = match[1];
-  const body = match[2].trim();
-  fm._body = body;
-  
-  // Parse YAML-like lines
-  raw.split('\n').forEach(line => {
-    const sep = line.indexOf(':');
-    if (sep === -1) return;
-    const key = line.slice(0, sep).trim();
-    let val = line.slice(sep + 1).trim();
-    if (val.startsWith('"') && val.endsWith('"')) val = val.slice(1, -1);
-    if (val.startsWith("'") && val.endsWith("'")) val = val.slice(1, -1);
-    
-    if (key === 'tags') {
-      if (val.startsWith('[')) {
-        fm.tags = val.slice(1, -1).split(',').map(t => t.trim().replace(/['"]/g, '')).filter(Boolean);
-      } else {
-        fm.tags = val.split(',').map(t => t.trim()).filter(Boolean);
-      }
-    } else if (key === 'pubDate' || key === 'date') {
-      const d = val.trim();
-      fm.pubDate = d;
-      fm.date = d;
-    } else if (key === 'updatedDate') {
-      fm.updatedDate = val;
-    } else if (key === 'heroImage') {
-      fm.heroImage = val;
-    } else {
-      fm[key] = val;
-    }
-  });
-  return fm;
-}
-
-function buildFrontmatter(data) {
-  let fm = '---\n';
-  fm += `title: '${data.title.replace(/'/g, "\\'")}'\n`;
-  fm += `description: '${data.description.replace(/'/g, "\\'")}'\n`;
-  fm += `pubDate: ${data.pubDate}\n`;
-  if (data.updatedDate) fm += `updatedDate: ${data.updatedDate}\n`;
-  if (data.heroImage) fm += `heroImage: ${data.heroImage}\n`;
-  if (data.tags && data.tags.length) fm += `tags: [${data.tags.map(t => `'${t.trim()}'`).join(', ')}]\n`;
-  fm += '---\n\n';
-  return fm;
-}
-
-// ============ Posts List ============
-async function loadPosts() {
-  try {
-    if (posts.length === 0) {
-      const dir = await ghListDir('src/content/blog');
-      posts = dir.filter(f => f.name.endsWith('.md')).map(f => ({
-        name: f.name, path: f.path, slug: f.name.replace(/\.md$/, ''), sha: f.sha, size: f.size
-      }));
-    }
-    for (const p of posts) {
-      if (p.title) continue;
-      const c = await ghGetContent(p.path);
-      if (c) {
-        const fm = parseFrontmatter(c.content);
-        p.title = fm.title || p.slug;
-        p.date = fm.pubDate || fm.date || '';
-        p.tags = fm.tags || [];
-        p.desc = fm.description || '';
-        p.body = c.content;
-        p.sha = c.sha;
-        p.fm = fm;
-      }
-    }
-    renderPosts();
-  } catch (e) {
-    showToast(`加载失败: ${e.message}`, 'error');
-  }
-}
-
-function renderPosts(filter = '') {
-  let list = [...posts];
-  if (filter) {
-    const f = filter.toLowerCase();
-    list = list.filter(p => (p.title && p.title.toLowerCase().includes(f)) || p.slug.includes(f));
-  }
-
+// ============ Posts ============
+function renderPosts() {
+  const list = [...posts];
   document.getElementById('page-content').innerHTML = `
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;flex-wrap:wrap;gap:12px">
       <h1 style="font-size:1.5rem;font-weight:700;color:#0f172a;margin:0">📄 文章管理</h1>
-      <button onclick="newPost()" class="btn btn-primary">✏️ 新建文章</button>
+      <div style="display:flex;gap:8px">
+        <button onclick="refreshAll()" class="btn btn-ghost btn-sm">🔄 刷新</button>
+        <button onclick="newPost()" class="btn btn-primary">✏️ 新建文章</button>
+      </div>
     </div>
     <div class="card" style="padding:16px">
       <div style="display:flex;gap:12px;align-items:center">
-        <input type="text" id="search-input" placeholder="搜索文章标题..." style="max-width:320px" oninput="renderPosts(this.value)">
+        <input type="text" id="search-input" placeholder="搜索文章标题..." style="max-width:320px" oninput="filterPosts(this.value)">
         <span style="font-size:0.85rem;color:#94a3b8">共 ${list.length} 篇</span>
       </div>
     </div>
-    ${list.length === 0 ? '<div class="card empty-state"><h3>📭 暂无文章</h3><p style="margin-bottom:16px">还没有任何文章，开始写第一篇吧！</p><button onclick="newPost()" class="btn btn-primary">✏️ 新建文章</button></div>' : `
+    ${list.length===0?'<div class="card empty-state"><h3>📭 暂无文章</h3><p style="margin-bottom:16px">开始写第一篇吧！</p><button onclick="newPost()" class="btn btn-primary">✏️ 新建文章</button></div>':`
     <div class="card" style="padding:0;overflow:hidden">
       <table>
-        <thead>
-          <tr>
-            <th style="width:40%">标题</th>
-            <th style="width:15%">发布日期</th>
-            <th style="width:25%">标签</th>
-            <th style="width:20%">操作</th>
-          </tr>
-        </thead>
-        <tbody>
-          ${list.map(p => `
-            <tr>
-              <td>
-                <div style="font-weight:500;color:#0f172a">${p.title || p.slug}</div>
-                <div style="font-size:0.8rem;color:#94a3b8;margin-top:2px">${p.slug}.md</div>
-              </td>
-              <td style="color:#64748b">${p.date || '-'}</td>
-              <td>${(p.tags || []).map(t => '<span class="badge badge-blue" style="margin-right:4px">'+t+'</span>').join('') || '-'}</td>
-              <td>
-                <button onclick="editPost('${p.slug}')" class="btn btn-ghost btn-sm" style="margin-right:6px">编辑</button>
-                <button onclick="deletePost('${p.slug}','${(p.title||p.slug).replace(/'/g,"\\'")}')" class="btn btn-danger btn-sm">删除</button>
-              </td>
-            </tr>
-          `).join('')}
+        <thead><tr><th style="width:38%">标题</th><th style="width:15%">日期</th><th style="width:25%">标签</th><th style="width:22%">操作</th></tr></thead>
+        <tbody id="posts-tbody">
+          ${list.map(p=>renderPostRow(p)).join('')}
         </tbody>
       </table>
     </div>`}
   `;
 }
 
-// ============ Edit / New Post ============
+function renderPostRow(p) {
+  return `<tr data-slug="${p.slug}">
+    <td><div style="font-weight:500;color:#0f172a">${p.title}</div><div style="font-size:0.8rem;color:#94a3b8;margin-top:2px">${p.slug}.md</div></td>
+    <td style="color:#64748b">${p.date||'-'}</td>
+    <td>${(p.tags||[]).map(t=>'<span class="badge badge-blue" style="margin-right:4px">'+t+'</span>').join('')||'-'}</td>
+    <td><button onclick="editPost('${p.slug}')" class="btn btn-ghost btn-sm" style="margin-right:6px">编辑</button><button onclick="deletePost('${p.slug}','${(p.title||'').replace(/'/g,"\\'")}')" class="btn btn-danger btn-sm">删除</button></td>
+  </tr>`;
+}
+
+function filterPosts(q) {
+  const f = q.toLowerCase();
+  document.querySelectorAll('#posts-tbody tr').forEach(tr=>{
+    tr.style.display = (f===''||tr.textContent.toLowerCase().includes(f))?'':'none';
+  });
+}
+
+// ============ New / Edit ============
 function newPost() {
-  editingPost = null;
+  editingSlug = null;
   document.getElementById('editor-title').textContent = '✏️ 新建文章';
   document.getElementById('post-title').value = '';
   document.getElementById('post-desc').value = '';
@@ -553,40 +562,26 @@ function newPost() {
   document.getElementById('post-body').value = '';
   document.getElementById('editor-save-btn').textContent = '💾 保存并部署';
   document.getElementById('editor-modal').style.display = 'flex';
-  document.getElementById('post-title').focus();
+  setTimeout(()=>document.getElementById('post-title').focus(),100);
 }
 
 async function editPost(slug) {
-  try {
-    const p = posts.find(x => x.slug === slug);
-    if (!p || !p.body) {
-      const c = await ghGetContent(`src/content/blog/${slug}.md`);
-      if (!c) { showToast('文章不存在', 'error'); return; }
-      const fm = parseFrontmatter(c.content);
-      p.body = c.content;
-      p.sha = c.sha;
-      Object.assign(p, fm);
-    }
-    
-    editingPost = slug;
-    document.getElementById('editor-title').textContent = '📝 编辑文章';
-    document.getElementById('post-title').value = p.title || '';
-    document.getElementById('post-desc').value = (p.desc || p.description || '');
-    document.getElementById('post-date').value = (p.date || '').slice(0,10);
-    document.getElementById('post-tags').value = (p.tags || []).join(', ');
-    document.getElementById('post-hero').value = p.heroImage || '';
-    document.getElementById('post-slug').value = slug;
-    document.getElementById('post-body').value = p.fm?._body || '';
-    document.getElementById('editor-save-btn').textContent = '💾 保存并部署';
-    document.getElementById('editor-modal').style.display = 'flex';
-  } catch (e) {
-    showToast(`加载失败: ${e.message}`, 'error');
-  }
+  const p = posts.find(x=>x.slug===slug);
+  if (!p) { showToast('文章不存在','error'); return; }
+  editingSlug = slug;
+  document.getElementById('editor-title').textContent = '📝 编辑文章';
+  document.getElementById('post-title').value = p.title;
+  document.getElementById('post-desc').value = p.desc;
+  document.getElementById('post-date').value = (p.date||'').slice(0,10);
+  document.getElementById('post-tags').value = (p.tags||[]).join(', ');
+  document.getElementById('post-hero').value = p.hero||'';
+  document.getElementById('post-slug').value = slug;
+  document.getElementById('post-body').value = p.fm?._body||'';
+  document.getElementById('editor-save-btn').textContent = '💾 保存并部署';
+  document.getElementById('editor-modal').style.display = 'flex';
 }
 
-function closeEditor() {
-  document.getElementById('editor-modal').style.display = 'none';
-}
+function closeEditor() { document.getElementById('editor-modal').style.display = 'none'; }
 
 async function savePost() {
   const title = document.getElementById('post-title').value.trim();
@@ -597,36 +592,31 @@ async function savePost() {
   const bodyRaw = document.getElementById('post-body').value.trim();
   const slugInput = document.getElementById('post-slug').value.trim();
 
-  if (!title) { showToast('请填写文章标题', 'error'); return; }
-  if (!description) { showToast('请填写文章描述', 'error'); return; }
-  if (!pubDate) { showToast('请选择发布日期', 'error'); return; }
-  if (!bodyRaw) { showToast('请填写文章正文', 'error'); return; }
+  if (!title) { showToast('请填写文章标题','error'); return; }
+  if (!description) { showToast('请填写文章描述','error'); return; }
+  if (!pubDate) { showToast('请选择发布日期','error'); return; }
+  if (!bodyRaw) { showToast('请填写文章正文','error'); return; }
 
-  const tags = tagsRaw ? tagsRaw.split(',').map(t => t.trim()).filter(Boolean) : [];
-  const slug = slugInput || title.toLowerCase().replace(/[^a-z0-9\u4e00-\u9fa5]+/g, '-').replace(/^-+|-+$/g, '') || 'post';
+  const tags = tagsRaw ? tagsRaw.split(',').map(t=>t.trim()).filter(Boolean) : [];
+  const slug = slugInput || title.toLowerCase().replace(/[^a-z0-9\u4e00-\u9fa5]+/g,'-').replace(/^-+|-+$/g,'')||'post';
+  const isNew = !editingSlug;
   
-  const frontmatter = buildFrontmatter({ title, description, pubDate, tags, heroImage });
-  const content = frontmatter + bodyRaw + '\n';
+  let md = buildFrontmatter({title,description,pubDate,tags,heroImage});
+  md += bodyRaw + '\n';
   const path = `src/content/blog/${slug}.md`;
-  const isNew = !editingPost;
-  const message = isNew ? `feat: new post "${title}"` : `update: edit "${title}"`;
+  const msg = isNew ? `feat: new post "${title}"` : `update: ${title}`;
 
   const btn = document.getElementById('editor-save-btn');
   btn.disabled = true; btn.textContent = '⏳ 保存中...';
 
   try {
-    await ghPutContent(path, content, message);
-    showToast(`✅ 文章已${isNew ? '创建' : '更新'}！即将重新部署...`, 'success');
+    await ghWriteFile(path, md, msg);
+    showToast(`✅ 文章已${isNew?'创建':'更新'}！Vercel 自动部署中...`,'success');
     closeEditor();
-    
-    // Trigger Vercel deploy hook
-    triggerVercelDeploy();
-    
-    // Refresh posts
-    posts = [];
-    setTimeout(() => loadPosts(), 1000);
+    await refreshPosts();
+    nav('posts');
   } catch (e) {
-    showToast(`保存失败: ${e.message}`, 'error');
+    showToast(`保存失败: ${e.message}`,'error');
   }
   btn.disabled = false; btn.textContent = '💾 保存并部署';
 }
@@ -637,34 +627,38 @@ function deletePost(slug, title) {
   document.getElementById('delete-title-text').textContent = title;
   document.getElementById('delete-modal').style.display = 'flex';
 }
-
-function closeDelete() {
-  document.getElementById('delete-modal').style.display = 'none';
-  deletingSlug = null;
-}
+function closeDelete() { document.getElementById('delete-modal').style.display = 'none'; deletingSlug=null; }
 
 async function confirmDelete() {
   if (!deletingSlug) return;
   const btn = document.getElementById('delete-confirm-btn');
   btn.disabled = true; btn.textContent = '⏳ 删除中...';
-  
   try {
-    await ghDeleteContent(`src/content/blog/${deletingSlug}.md`, `delete: ${deletingSlug}`);
-    showToast('✅ 文章已删除！即将重新部署...', 'success');
+    await ghDeleteFile(`src/content/blog/${deletingSlug}.md`,`delete: ${deletingSlug}`);
+    showToast('✅ 已删除！Vercel 自动部署中...','success');
     closeDelete();
-    triggerVercelDeploy();
-    posts = [];
-    setTimeout(() => loadPosts(), 1000);
-  } catch (e) {
-    showToast(`删除失败: ${e.message}`, 'error');
-  }
+    await refreshPosts();
+    nav('posts');
+  } catch(e) { showToast(`删除失败: ${e.message}`,'error'); }
   btn.disabled = false; btn.textContent = '🗑️ 确认删除';
 }
 
+// ============ Refresh All ============
+async function refreshAll() {
+  const btn = event?.target || document.querySelector('[onclick*="refreshAll"]');
+  if (btn) { btn.disabled = true; btn.textContent = '⏳...'; }
+  try {
+    await refreshPosts();
+    nav('posts');
+    showToast('✅ 已刷新','success');
+  } catch(e) { showToast(`刷新失败: ${e.message}`,'error'); }
+  if (btn) { btn.disabled = false; btn.textContent = '🔄 刷新'; }
+}
+
 // ============ Settings ============
-function loadSettings() {
+function renderSettings() {
   document.getElementById('page-content').innerHTML = `
-    <h1 style="font-size:1.5rem;font-weight:700;margin-bottom:20px;color:#0f172a">⚙️ 站点设置</h1>
+    <h1 style="font-size:1.5rem;font-weight:700;margin-bottom:20px;color:#0f172a">⚙️ 设置</h1>
     <div class="card">
       <h3 style="font-size:1rem;font-weight:600;margin-bottom:16px">GitHub 配置</h3>
       <div class="form-grid">
@@ -676,116 +670,73 @@ function loadSettings() {
           <label>分支</label>
           <input type="text" id="set-branch" value="${config.branch}">
         </div>
-        <div class="half">
-          <label>作者</label>
-          <input type="text" id="set-author" value="${config.author}">
-        </div>
-        <div class="half">
-          <label>Token（已隐藏）</label>
-          <input type="password" id="set-token" value="••••••••" placeholder="输入新 Token 以更换">
+        <div class="full">
+          <label>Token（留空则不更改）</label>
+          <input type="password" id="set-token" placeholder="输入新 Token 以更换">
         </div>
       </div>
-      <button onclick="saveSettings()" class="btn btn-primary" style="margin-top:16px">💾 保存设置</button>
+      <button onclick="saveSettings()" class="btn btn-primary" style="margin-top:16px">💾 保存</button>
     </div>
     <div class="card">
-      <h3 style="font-size:1rem;font-weight:600;margin-bottom:8px">关于</h3>
-      <p style="color:#64748b;font-size:0.9rem">这个管理后台通过 GitHub API 直接读写仓库中的 Markdown 文件。每次保存文章会自动提交到 GitHub，Vercel 检测到提交后自动重新部署。</p>
-      <ul style="color:#64748b;font-size:0.9rem;padding-left:20px;margin-top:8px">
+      <h3 style="font-size:1rem;font-weight:600;margin-bottom:8px">ℹ️ 说明</h3>
+      <p style="color:#64748b;font-size:0.9rem">管理后台通过 GitHub API 直接读写仓库文件。</p>
+      <ul style="color:#64748b;font-size:0.9rem;padding-left:20px;margin-top:8px;line-height:1.8">
         <li>📄 文章存储在 <code>src/content/blog/</code></li>
-        <li>🔗 站点：<a href="https://61306130.xyz" target="_blank" style="color:#3b82f6">61306130.xyz</a></li>
-        <li>⚡ Vercel 自动部署</li>
+        <li>🔗 <a href="https://61306130.xyz" target="_blank" style="color:#3b82f6">61306130.xyz</a></li>
+        <li>⚡ 保存文章 → 自动 commit → Vercel 自动重新部署</li>
+        <li>🔑 需要 GitHub Token（权限：repo）</li>
       </ul>
     </div>
   `;
 }
 
 function saveSettings() {
-  const repo = document.getElementById('set-repo').value.trim();
-  const branch = document.getElementById('set-branch').value.trim();
-  const author = document.getElementById('set-author').value.trim();
-  const token = document.getElementById('set-token').value.trim();
-  
-  if (repo) config.repo = repo;
-  if (branch) config.branch = branch;
-  if (author) config.author = author;
-  if (token && token !== '••••••••') config.token = token;
-  
+  const r = document.getElementById('set-repo').value.trim();
+  const b = document.getElementById('set-branch').value.trim();
+  const t = document.getElementById('set-token').value.trim();
+  if (r) config.repo = r;
+  if (b) config.branch = b;
+  if (t) config.token = t;
   localStorage.setItem('blog-admin-config', JSON.stringify(config));
-  showToast('✅ 设置已保存', 'success');
+  showToast('✅ 设置已保存','success');
 }
 
 // ============ Media ============
-async function loadMedia() {
-  try {
-    const publicFiles = await ghListDir('public').catch(() => []);
-    const images = publicFiles.filter(f => /\.(png|jpg|jpeg|gif|svg|webp|ico)$/i.test(f.name));
-    
-    // Also collect images referenced in posts
-    const postImages = new Set();
-    for (const p of posts) {
-      if (p.body) {
-        const matches = p.body.match(/!\[.*?\]\((.*?)\)/g) || [];
-        matches.forEach(m => {
-          const url = m.match(/\((.*?)\)/)[1];
-          if (!url.startsWith('http')) postImages.add(url);
-        });
-      }
+function renderMedia() {
+  const imgs = [];
+  posts.forEach(p=>{
+    if(p.body){
+      const ms = p.body.match(/!\[.*?\]\((.*?)\)/g)||[];
+      ms.forEach(m=>{const u=m.match(/\((.*?)\)/)[1];if(!u.startsWith('http'))imgs.push({url:u,post:p.title})});
     }
+  });
 
-    document.getElementById('page-content').innerHTML = `
-      <h1 style="font-size:1.5rem;font-weight:700;margin-bottom:20px;color:#0f172a">🖼️ 媒体管理</h1>
-      <div class="card">
-        <h3 style="font-size:1rem;font-weight:600;margin-bottom:12px">public/ 中的图片</h3>
-        ${images.length === 0 ? '<p style="color:#94a3b8">暂无图片</p>' : 
-          `<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:12px">
-            ${images.map(f => `
-              <div style="border:1px solid #e2e8f0;border-radius:8px;overflow:hidden;text-align:center">
-                <div style="padding:8px;background:#f8fafc;border-bottom:1px solid #e2e8f0">
-                  <a href="https://61306130.xyz/${f.name}" target="_blank" style="word-break:break-all;font-size:0.8rem;color:#3b82f6">${f.name}</a>
-                </div>
-                <div style="padding:16px;color:#94a3b8;font-size:0.85rem">${Math.round(f.size/1024*10)/10} KB</div>
-              </div>
-            `).join('')}
-          </div>`
-        }
-      </div>
-      <div class="card">
-        <h3 style="font-size:1rem;font-weight:600;margin-bottom:12px">文章中使用的图片</h3>
-        ${postImages.size === 0 ? '<p style="color:#94a3b8">暂未发现引用图片</p>' : 
-          [...postImages].map(u => `<div style="padding:6px 0;border-bottom:1px solid #f1f5f9;font-size:0.9rem"><code style="color:#3b82f6">${u}</code></div>`).join('')
-        }
-      </div>
-    `;
-  } catch (e) {
-    showToast(`加载失败: ${e.message}`, 'error');
-  }
-}
-
-// ============ Vercel Deploy Hook ============
-function triggerVercelDeploy() {
-  // Try to trigger via GitHub commit (already done by ghPutContent)
-  // Vercel auto-deploys on push, so no extra action needed
-  showToast('⚡ 已提交到 GitHub，Vercel 自动部署中...', 'info');
-}
-
-async function syncVercel() {
-  showToast('⚡ 正在触发重新部署...', 'info');
-  try {
-    // Get the deploy hook URL
-    showToast('✅ 已提交到 GitHub，Vercel 将自动部署', 'success');
-  } catch (e) {
-    showToast(`部署触发失败: ${e.message}`, 'error');
-  }
+  document.getElementById('page-content').innerHTML = `
+    <h1 style="font-size:1.5rem;font-weight:700;margin-bottom:20px;color:#0f172a">🖼️ 媒体</h1>
+    <div class="card">
+      <h3 style="font-size:1rem;font-weight:600;margin-bottom:12px">文章中使用的本地图片</h3>
+      ${imgs.length===0?'<p style="color:#94a3b8">暂未发现引用本地图片</p>':imgs.map(i=>`
+        <div style="padding:8px 0;border-bottom:1px solid #f1f5f9;display:flex;justify-content:space-between;align-items:center">
+          <code style="color:#3b82f6;font-size:0.9rem">${i.url}</code>
+          <span style="font-size:0.8rem;color:#94a3b8">${i.post}</span>
+        </div>
+      `).join('')}
+    </div>
+    <div class="card">
+      <h3 style="font-size:1rem;font-weight:600;margin-bottom:12px">上传图片到仓库</h3>
+      <p style="color:#94a3b8;font-size:0.9rem">把图片放在 <code>public/</code> 目录中即可通过 <code>https://61306130.xyz/图片名</code> 访问。</p>
+      <p style="color:#94a3b8;font-size:0.9rem">文章中用 <code>![alt](/图片名)</code> 引用。</p>
+    </div>
+  `;
 }
 
 // ============ Toast ============
-function showToast(msg, type = 'info') {
+function showToast(msg, type='info') {
   const el = document.getElementById('toast');
   el.textContent = msg;
-  el.className = `toast toast-${type}`;
-  el.classList.add('show');
+  el.className = `toast toast-${type} show`;
   clearTimeout(el._timer);
-  el._timer = setTimeout(() => el.classList.remove('show'), 3500);
+  el._timer = setTimeout(()=>el.classList.remove('show'), 4000);
 }
 </script>
 </body>
