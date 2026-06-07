@@ -1,0 +1,10 @@
+{
+  "framework": "astro",
+  "buildCommand": "astro build",
+  "outputDirectory": "dist",
+  "functions": {
+    "api/*.js": {
+      "maxDuration": 60
+    }
+  }
+}

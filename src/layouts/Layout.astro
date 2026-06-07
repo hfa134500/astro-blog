@@ -19,11 +19,11 @@ const { title, description } = Astro.props;
   <body>
     <header>
       <nav>
-        <a href="/" class="logo">📝 我的博客</a>
+        <a href="/" class="logo">我的博客</a>
         <div class="nav-links">
           <a href="/">首页</a>
           <a href="/blog">文章</a>
-          <a href="/admin" style="color:#3b82f6">管理</a>
+          <a href="/admin">管理</a>
         </div>
       </nav>
     </header>
@@ -31,7 +31,7 @@ const { title, description } = Astro.props;
       <slot />
     </main>
     <footer>
-      <p>&copy; {new Date().getFullYear()} 我的博客. Built with Astro.</p>
+      <p>&copy; {new Date().getFullYear()} 我的博客</p>
     </footer>
   </body>
 </html>
@@ -43,37 +43,39 @@ const { title, description } = Astro.props;
     box-sizing: border-box;
   }
   body {
-    font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
-    line-height: 1.7;
-    color: #1a1a2e;
-    background: #f8fafc;
+    font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Helvetica Neue', sans-serif;
+    line-height: 1.6;
+    color: #1d1d1f;
+    background: #fff;
     min-height: 100vh;
     display: flex;
     flex-direction: column;
+    -webkit-font-smoothing: antialiased;
   }
   header {
-    background: white;
-    border-bottom: 1px solid #e2e8f0;
-    padding: 1rem 0;
+    border-bottom: 1px solid #f2f2f2;
+    padding: 0;
     position: sticky;
     top: 0;
     z-index: 100;
-    backdrop-filter: blur(8px);
-    background: rgba(255,255,255,0.9);
+    background: rgba(255,255,255,0.85);
+    backdrop-filter: saturate(180%) blur(20px);
   }
   nav {
-    max-width: 800px;
+    max-width: 720px;
     margin: 0 auto;
     padding: 0 1.5rem;
     display: flex;
     justify-content: space-between;
     align-items: center;
+    height: 52px;
   }
   .logo {
-    font-size: 1.2rem;
-    font-weight: 700;
+    font-size: 1rem;
+    font-weight: 600;
     text-decoration: none;
-    color: #1a1a2e;
+    color: #1d1d1f;
+    letter-spacing: -0.01em;
   }
   .nav-links {
     display: flex;
@@ -81,26 +83,25 @@ const { title, description } = Astro.props;
   }
   .nav-links a {
     text-decoration: none;
-    color: #64748b;
-    font-size: 0.95rem;
+    color: #86868b;
+    font-size: 0.875rem;
+    font-weight: 400;
     transition: color 0.2s;
   }
   .nav-links a:hover {
-    color: #3b82f6;
+    color: #1d1d1f;
   }
   main {
     flex: 1;
-    max-width: 800px;
+    max-width: 720px;
     margin: 0 auto;
-    padding: 2rem 1.5rem;
+    padding: 0 1.5rem;
     width: 100%;
   }
   footer {
     text-align: center;
-    padding: 2rem;
-    color: #94a3b8;
-    font-size: 0.85rem;
-    border-top: 1px solid #e2e8f0;
-    background: white;
+    padding: 2.5rem 1.5rem 3rem;
+    color: #86868b;
+    font-size: 0.75rem;
   }
 </style>
