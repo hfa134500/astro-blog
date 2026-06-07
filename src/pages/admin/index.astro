@@ -173,16 +173,15 @@ tr:hover td{background:#f8fafc}
     <h2 id="deploy-status-title" style="margin:0 0 8px">正在保存...</h2>
     <p id="deploy-status-msg" style="color:#64748b;margin:0 0 16px">正在提交到 GitHub...</p>
     <div id="deploy-progress" style="display:flex;justify-content:center;gap:8px;margin-bottom:12px">
-      <div id="deploy-step-1" class="badge badge-gray">📝 提交</div>
-      <div id="deploy-step-2" class="badge badge-gray">⬆️ 推送</div>
-      <div id="deploy-step-3" class="badge badge-gray">🔄 部署</div>
-      <div id="deploy-step-4" class="badge badge-gray">✅ 完成</div>
+      <span id="deploy-step-1" class="badge badge-green">✅ 已保存</span>
+      <span id="deploy-step-2" class="badge badge-blue">🔄 部署中</span>
     </div>
     <div id="deploy-result" style="display:none">
       <div id="deploy-check-url" style="margin-bottom:16px;font-size:0.9rem"></div>
       <button onclick="checkDeployResult()" class="btn btn-primary" style="margin-right:8px">🔄 检查状态</button>
       <a id="deploy-view-btn" href="https://61306130.xyz" target="_blank" class="btn btn-ghost" style="text-decoration:none">🔗 查看博客</a>
     </div>
+    <button id="deploy-close-btn" onclick="document.getElementById('deploy-overlay').style.display='none'" class="btn btn-ghost btn-sm" style="margin-top:16px">关闭</button>
   </div>
 </div>
 
@@ -687,13 +686,6 @@ async function refreshAll() {
 }
 
 // ============ Deploy Hook ============
-const DEPLOY_STEPS = [
-  { id: 'step-1', label: '📝 提交' },
-  { id: 'step-2', label: '⬆️ 推送' },
-  { id: 'step-3', label: '🔄 部署' },
-  { id: 'step-4', label: '✅ 完成' },
-];
-
 function showDeployOverlay(title, msg, step) {
   document.getElementById('deploy-overlay').style.display = 'flex';
   document.getElementById('deploy-icon').textContent = ['⏳','⏳','🔄','✅'][step-1] || '⏳';
@@ -701,17 +693,13 @@ function showDeployOverlay(title, msg, step) {
   document.getElementById('deploy-status-msg').textContent = msg;
   document.getElementById('deploy-result').style.display = 'none';
   
-  DEPLOY_STEPS.forEach((s, i) => {
-    const el = document.getElementById('deploy-' + s.id);
-    if (i < step) {
-      el.className = 'badge badge-green';
-      el.textContent = '✅ ' + s.label.slice(2);
-    } else if (i === step) {
-      el.className = 'badge badge-blue';
-    } else {
-      el.className = 'badge badge-gray';
-    }
-  });
+  if (step >= 4) {
+    document.getElementById('deploy-step-1').className = 'badge badge-green';
+    document.getElementById('deploy-step-2').className = 'badge badge-green';
+    document.getElementById('deploy-step-2').textContent = '✅ 部署中';
+  } else if (step >= 2) {
+    document.getElementById('deploy-step-2').textContent = '🔄 部署中';
+  }
 }
 
 function showDeployResult(success, deployUrl) {
@@ -730,49 +718,62 @@ function showDeployResult(success, deployUrl) {
 }
 
 async function triggerDeploy(source) {
-  showDeployOverlay('正在部署...', '正在保存并触发 Vercel 部署...', 3);
+  showDeployOverlay('正在部署...', '正在触发 Vercel 部署...', 3);
 
   try {
-    const res = await fetch('/api/trigger-deploy', { method: 'POST' });
+    // Call deploy hook directly (public URL, no auth needed)
+    const res = await fetch('https://api.vercel.com/v1/integrations/deploy/prj_JLaBR1OufUKgQQPI4iY1EbclYX6t/LcHoVeNQ1I', { method: 'POST' });
+    const ok = res.ok || res.status === 201;
     
-    if (res.ok) {
-      const data = await res.json();
-      
-      showDeployOverlay('部署中...', 'Vercel 正在构建和部署...', 4);
-      
-      // Poll until the site responds with new content
-      let attempts = 0;
-      const poll = setInterval(async () => {
-        attempts++;
-        try {
-          const check = await fetch('https://61306130.xyz', { method: 'HEAD' });
-          if (check.ok && attempts > 2) {
-            clearInterval(poll);
-            showDeployResult(true, data.deploymentUrl);
-          } else if (attempts > 20) {
-            clearInterval(poll);
-            showDeployResult(true, data.deploymentUrl);
-          }
-        } catch(e) {
-          if (attempts > 20) {
-            clearInterval(poll);
-            showDeployResult(true, 'https://61306130.xyz');
-          }
+    showDeployOverlay(ok ? '部署已触发' : '部署触发异常', 
+      ok 
+        ? 'GitHub 已更新，正在等待 Vercel 构建完成...'
+        : `部署钩子返回 ${res.status}，但 GitHub 已更新。`,
+      4);
+    
+    // After 20 seconds, try to assign the new deployment to the domain
+    setTimeout(async () => {
+      try {
+        const assignRes = await fetch('/api/assign-domain', { method: 'POST' });
+        const data = await assignRes.json().catch(() => ({}));
+        if (data.success) {
+          document.getElementById('deploy-overlay').style.display = 'none';
+          showToast('✅ 部署完成！博客已更新。', 'success');
+        } else {
+          // Try again after another 20 seconds
+          setTimeout(async () => {
+            try {
+              const retryRes = await fetch('/api/assign-domain', { method: 'POST' });
+              const retryData = await retryRes.json().catch(() => ({}));
+              document.getElementById('deploy-overlay').style.display = 'none';
+              if (retryData.success) {
+                showToast('✅ 部署完成！博客已更新。', 'success');
+              } else {
+                showToast('✅ 文章已保存！刷新博客查看。', 'success');
+              }
+            } catch(e) {
+              document.getElementById('deploy-overlay').style.display = 'none';
+              showToast('✅ 文章已保存！刷新博客查看。', 'success');
+            }
+          }, 20000);
         }
-      }, 5000);
-      
-      // If API call itself found the deployment was ready, show result
-      if (data.success) {
-        // Keep polling for site to update
+      } catch(e) {
+        document.getElementById('deploy-overlay').style.display = 'none';
+        showToast('✅ 文章已保存！刷新博客查看。', 'success');
       }
-    } else {
-      const err = await res.json().catch(() => ({}));
-      showDeployOverlay('部署异常', `API 错误: ${err.error || res.status}。但 GitHub 已更新，稍后刷新页面即可看到变更。`, 4);
-      setTimeout(() => showDeployResult(true, 'https://61306130.xyz'), 2000);
-    }
+    }, 20000);
+    
+    // Also auto-hide overlay after 45 seconds as fallback
+    setTimeout(() => {
+      document.getElementById('deploy-overlay').style.display = 'none';
+    }, 45000);
+    
   } catch (e) {
-    showDeployOverlay('部署异常', `网络错误: ${e.message}。但 GitHub 已更新，Vercel 自动部署中。`, 4);
-    setTimeout(() => showDeployResult(true, 'https://61306130.xyz'), 2000);
+    showDeployOverlay('部署触发失败', `错误: ${e.message}。但文章已保存到 GitHub，Vercel 会自动部署。`, 4);
+    setTimeout(() => {
+      document.getElementById('deploy-overlay').style.display = 'none';
+      showToast('✅ 文章已保存！Vercel 自动部署中。', 'success');
+    }, 4000);
   }
 }
 
