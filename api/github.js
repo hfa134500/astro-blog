@@ -1,6 +1,4 @@
 // Vercel Serverless Function — Proxies all requests to GitHub API
-// This solves the "Failed to fetch" issue when browsers can't reach api.github.com directly
-
 export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'GET, PUT, DELETE, OPTIONS');
@@ -13,7 +11,10 @@ export default async function handler(req, res) {
 
   const path = req.query.path || '';
   const repo = req.query.repo || 'hfa134500/astro-blog';
-  const url = `https://api.github.com/repos/${repo}/${path}`;
+  // Build URL without trailing slash when path is empty
+  const url = path
+    ? `https://api.github.com/repos/${repo}/${path}`
+    : `https://api.github.com/repos/${repo}`;
 
   const authHeader = req.headers.authorization;
   if (!authHeader) {
@@ -21,7 +22,6 @@ export default async function handler(req, res) {
     return;
   }
 
-  // Forward relevant headers
   const options = {
     method: req.method,
     headers: {
@@ -31,23 +31,17 @@ export default async function handler(req, res) {
     },
   };
 
-  // Forward body for PUT/POST/PATCH/DELETE
   if (req.body && ['PUT','POST','PATCH','DELETE'].includes(req.method)) {
     options.body = JSON.stringify(req.body);
     options.headers['Content-Type'] = 'application/json';
-    options.headers['Content-Length'] = Buffer.byteLength(options.body).toString();
   }
 
   try {
     const response = await fetch(url, options);
     const contentType = response.headers.get('content-type') || '';
-
     res.status(response.status);
 
-    if (response.status === 204) {
-      res.end();
-      return;
-    }
+    if (response.status === 204) { res.end(); return; }
 
     if (contentType.includes('application/json')) {
       const data = await response.json();
@@ -58,9 +52,6 @@ export default async function handler(req, res) {
     }
   } catch (error) {
     console.error('Proxy error:', error.message);
-    res.status(502).json({
-      error: 'Failed to connect to GitHub API',
-      detail: error.message,
-    });
+    res.status(502).json({ error: 'Failed to connect to GitHub API', detail: error.message });
   }
 }
