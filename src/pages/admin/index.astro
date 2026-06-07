@@ -206,18 +206,30 @@ async function autoConnect() {
   }
 }
 
-// ============ GitHub API ============
+// ============ GitHub API (via Vercel Proxy) ============
+const API_BASE = '/api/github';
+
 async function gh(urlSuffix, opts = {}) {
-  const url = `https://api.github.com/repos/${config.repo}/${urlSuffix}`;
+  const params = new URLSearchParams({
+    path: urlSuffix,
+    repo: config.repo,
+    branch: config.branch,
+  });
+  const fullUrl = `${API_BASE}?${params}`;
+  
   const headers = {
     Authorization: `Bearer ${config.token}`,
-    Accept: 'application/vnd.github.v3+json',
     'User-Agent': 'blog-admin',
+    Accept: 'application/vnd.github.v3+json',
     ...(opts.headers || {}),
   };
-  if (!opts.noContentType && opts.body) headers['Content-Type'] = 'application/json';
+  if (opts.body) headers['Content-Type'] = 'application/json';
 
-  const res = await fetch(url, { ...opts, headers });
+  const res = await fetch(fullUrl, {
+    method: opts.method || 'GET',
+    headers,
+    body: opts.body || undefined,
+  });
 
   if (!res.ok) {
     let msg = `HTTP ${res.status}`;
@@ -316,7 +328,6 @@ async function testConnection() {
     debugEl.style.display = 'block';
   } catch (e) {
     debugEl.textContent = `❌ 仓库访问失败\n`;
-    debugEl.textContent += `   ⤷ URL: https://api.github.com/repos/${config.repo}/\n`;
     debugEl.textContent += `   ⤷ 错误: ${e.message}\n\n`;
     debugEl.textContent += `可能的原因:\n`;
     debugEl.textContent += `   1. Token 不正确\n`;
