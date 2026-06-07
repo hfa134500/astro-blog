@@ -1,6 +1,6 @@
 {
   "framework": "astro",
-  "buildCommand": "astro build",
+  "buildCommand": "node scripts/sync-content.mjs && astro build",
   "outputDirectory": "dist",
   "functions": {
     "api/*.js": {
